@@ -1,0 +1,162 @@
+( devices )
+|00 @System [ &vector $2 &pad $6 &r $2 &g $2 &b $2 &debug $1 &state $1 ]
+|10 @Console [ &vector $2 &read $1 &pad1 $5 &write $1 &error $1 &pad2 $6 ]
+|20 @Screen [ &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1 ]
+|80 @Controller [ &vector $2 &button $1 &key $1 &func $1 &p2 $1 &p3 $1 &p4 $1 ]
+|a0 @File [ &vector $2 &success $2 &stat $2 &delete $1 &append $1 &name $2 &length $2 &read $2 &write $2 ]
+
+|0000
+    ( zero page )
+    @frame-idx $2
+    @skip-frame $1
+    @color $1
+    @state $1
+    @filename [ &length $1 &value $40 ]
+    @video [ &width $2 &height $2 &frame-length $2 ]
+
+|0100
+    ( macros )
+    %MARGINS { #000a }
+    %RTN { JMP2r }
+
+    ( main program )
+    ( set colors )
+    #4faf .System/r DEO2
+    #05fb .System/g DEO2
+    #1672 .System/b DEO2
+
+    ( initialize zero page )
+    #0000 .frame-idx STZ
+    #00 .skip-frame STZ
+    #02 .color STZ
+    #00 .state STZ ( 0: init 1: playing 2: stop )
+    #00 .filename/length STZ
+
+    ( setting vectors )
+    ;on-screen .Screen/vector DEO2
+    ;on-controller .Controller/vector DEO2
+    ;on-console .Console/vector DEO2
+
+BRK
+
+    ( subroutines )
+    @on-console ( -> )
+        .state LDZ #00 NEQ ,&end JCN
+        ,read-filename JSR
+        &end
+    BRK
+
+    @read-filename ( -- )
+        .Console/read DEI
+        DUP #20 LTH OVR #7f GTH ORA ,&end-str JCN
+            .filename/value .filename/length LDZ ADD STZ
+            .filename/length LDZ INC .filename/length STZ
+            ,&end JMP
+        &end-str
+        POP #00 .filename/value .filename/length LDZ ADD STZ
+        #01 .state STZ
+        ,parse-header JSR
+        &end
+    RTN
+
+    @parse-header ( -- )
+        ( read header set the screen size accordingly )
+        ;filename/value ;open-file JSR2
+        POP2
+        .video/width LDZ2 MARGINS DUP2 ADD2 ADD2 .Screen/width DEO2
+        .video/height LDZ2 MARGINS DUP2 ADD2 ADD2 .Screen/height DEO2
+    RTN
+
+    @on-controller ( -> )
+        .Controller/key DEI #20 EQU ,&toggle JCN BRK ( space for play/pause )
+        &toggle
+        .state LDZ
+        DUP #01 EQU ,&stop JCN
+        DUP #02 EQU ,&play JCN
+        ,&end JMP
+        &stop
+            #02 ,&end JMP
+        &play
+            #01
+        &end
+            .state STZ POP BRK
+
+    @on-screen ( -> )
+        ( check the state )
+        .state LDZ #01 NEQ ,&skip JCN
+
+        ( the subroutine is called at 60 fps, but the video is at 30 fps )
+        ( so we use the skip-frame zero page flag to skip every other call )
+        .skip-frame LDZ #01 EQU ,&skip JCN
+
+        ( load the next frame )
+        ;frame-data ;load-frame JSR2
+        ( check if we successfully loaded the frame )
+        ,&read-fail JCN ,&read-success JMP
+        &read-fail
+            #0000 .frame-idx STZ
+            ;filename/value ;open-file JSR2
+            POP2 ( TODO: check for success )
+        &read-success
+        ( display the frame )
+        MARGINS DUP2 ;frame-data ;display-frame JSR2
+        ( increment frame-idx )
+        .frame-idx LDZ2 INC2 .frame-idx STZ2
+        ( toggle the skip-frame flag )
+        #01 .skip-frame STZ
+        BRK
+
+        &skip
+            ( toggle the skip-frame flag )
+            #00 .skip-frame STZ
+        BRK
+
+    @open-file ( ^filename* -- bytes_read )
+        .File/name DEO2 ( set the file name )
+        #0006 .File/length DEO2 ( read 3 shorts )
+        ;video .File/read DEO2 ( store the video width, height, frame length and frame count )
+        .video/frame-length LDZ2 .File/length DEO2 ( get the number of bytes per frame )
+        .File/success DEI2 ( push the number of bytes read on the stack )
+    RTN
+
+    @load-frame ( buffer* -- success-flag )
+        .File/read DEO2 ( load a frame in the buffer )
+        .File/success DEI2 ( push the number of bytes read on the stack )
+        .video/frame-length LDZ2 NEQ2 ( success flag is 00 if we read "frame-length" bytes, else 01 )
+    RTN
+
+    @display-frame ( x* y* buffer* -- )
+        .Screen/addr DEO2
+        #05 .Screen/auto DEO
+        .video/height LDZ2 ,convert-to-tiles JSR STH
+        &draw-frame-loop
+            OVR2 OVR2
+            ,display-row JSR
+            #0008 ADD2
+            STHr #01 SUB STHk ,&draw-frame-loop JCN
+        POP2 POP2
+        POPr
+    RTN
+
+    @display-row ( x* y* -- )
+        .Screen/y DEO2
+        .Screen/x DEO2
+        .video/width LDZ2 ,convert-to-tiles JSR STH
+        .color LDZ .Screen/sprite
+        &frame-row-loop
+            DEOk
+            STHr #01 SUB STHk ,&frame-row-loop JCN
+        POP2 POPr
+        RTN
+
+    @convert-to-tiles ( x* -- n )
+        DUP #07 AND ,&add-8 JCN ,&shift JMP
+        &add-8
+            #0008 ADD2
+        &shift
+        #03 SFT2
+        NIP
+    RTN
+
+    ( buffer for the frame )
+    @frame-data
