@@ -9,39 +9,34 @@ This project was written as an exercise for learning [Uxntal](https://wiki.xxiiv
 
 As this is pretty experimental, there's a lot of room for improvement: the playback speed is set at 30 fps, the frames aren't compressed therefore the resulting file can get pretty large (more than 3MB for a 6 seconds clip at 600x338 pixel), and there is no audio.
 
-## Requirements
-### Encoder
-- [FFmpeg](https://ffmpeg.org/) (for extracting the frames of the video to encode)
-- Python 3 + [Pillow](https://pypi.org/project/Pillow/) module (for encoding)
+**WIP: new encoder written in uxntal**
 
-### Player
+Not yet functionnal. The encoder generates a single ICN image from a PGM file.
+
+## Requirements
+- [FFmpeg](https://ffmpeg.org/) (for extracting the frames of the video to encode)
 - [uxn](https://git.sr.ht/~rabbits/uxn/) assembler and emulator
 
 ## Build
 ```
 uxnasm player.tal player.rom
+uxnasm encoder.tal encoder.rom
 ```
 
 ## Usage
-First, you need to extract the frames from the video you want to encode using *ffmpeg*. Since the resulting file isn't compressed, you may have to scale them down (500px seems to work well). The frames should all be in a separate directory with nothing else inside.
+### Extracting the frames
 ```
 mkdir frames
-ffmpeg -i [src-video] -ss [start-time] -t [duration] image2 scale=500:-2 frames/%03d.bmp
+ffmpeg -i [src-video] -ss [start-time] -t [duration] -f image2 -vf "format=gray scale=[width]:-2" frames/%03d.pgm
 ```
 
-Use *encode.py* to generate the encoded file:
-
+### Encoding the frames
 ```
-python encoder.py frames out.bin
+uxncli encoder.rom [pgm-file]
 ```
+This generates a 1-bit image in a file named *out.icn*.
 
-To play the video, pass it as an argument to player.rom:
-
-```
-uxnemu player.rom out.bin
-```
-
-Use <kbd>Space</kbd> to pause the video.
+**TODO:** Process a list of pgm files and concatenate them into a single file.
 
 ## Licensing
 
