@@ -1,9 +1,11 @@
 # uxn-player
-(WIP) An animation player for the [Uxn](https://100r.co/site/uxn.html) virtual machine.
+An animation player for the [Uxn](https://100r.co/site/uxn.html) virtual machine.
 
-![cat](https://user-images.githubusercontent.com/100698182/210174197-463af8eb-3d60-430f-8cad-00703f047783.gif)
+![cat](https://user-images.githubusercontent.com/100698182/210180843-be2c0a9c-25ff-416a-9e0d-dd4c745609ea.gif)
+
 
 It displays 1 bpp animations stored with a custom made file format. Audio isn't supported.
+
 This project started as an exercise for learning [Uxntal](https://wiki.xxiivv.com/site/uxntal.html) and is still a work in progress.
 
 ## File format
