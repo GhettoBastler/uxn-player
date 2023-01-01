@@ -1,0 +1,288 @@
+( devices )
+|10 @Console [ &vector $2 &read $1 &pad1 $5 &write $1 &error $1 &pad2 $6 ]
+|a0 @File0 [ &vector $2 &success $2 &stat $2 &delete $1 &append $1 &name $2 &length $2 &read $2 &write $2 ]
+|b0 @File1 [ &vector $2 &success $2 &stat $2 &delete $1 &append $1 &name $2 &length $2 &read $2 &write $2 ]
+
+|0000
+@state $1
+@filename [
+    &length $1
+    &value $40
+]
+@image [
+    &width $2
+    &height $2
+]
+
+@header [
+    &width $2
+    &height $2
+    &frame-length $2
+]
+
+@encoder [
+    &tile-count-row $2
+    &tile-count-col $2
+    &tile-idx-row $2
+    &tile-idx-col $2
+    &intile-idx-row $1
+    &intile-idx-col $1
+    &src-idx-row $2
+    &src-idx-col $2
+    &offset $2
+    &shift $1
+]
+
+|0100
+%MOD2 { DIV2k MUL2 SUB2 } ( a b -- a%b )
+%TO-TILE { #0008 DIV2k STH2k MUL2 GTH2 #00 SWP STH2r ADD2 }
+%RTN { JMP2r }
+
+( main program )
+    #00 .state STZ
+    #00 .filename/length STZ
+    ;on-console .Console/vector DEO2
+BRK
+
+( subroutines )
+@on-console ( -> )
+    .state LDZ #00 NEQ ,&end JCN
+    ,read-filename JSR
+    &end
+BRK
+
+@read-filename ( -- )
+    .Console/read DEI
+    DUP #20 LTH OVR #7f GTH ORA ,&end-str JCN
+        .filename/value .filename/length LDZ ADD STZ
+        .filename/length LDZ INC .filename/length STZ
+        ,&end JMP
+    &end-str
+    POP #00 .filename/value .filename/length LDZ ADD STZ
+    #01 .state STZ
+    ;filename/value ;process-file JSR2
+    &end
+RTN
+
+@generate-header ( buffer(addr)* -- )
+    STH2
+    .image/width LDZ2 STH2kr STA2
+    .image/height LDZ2 STH2kr #0002 ADD2 STA2
+    .encoder/tile-count-row LDZ2 .encoder/tile-count-col LDZ2 MUL2 #0008 MUL2 STH2kr #0004 ADD2
+    STA2
+    POP2r
+    RTN
+
+@process-file ( filename*(addr) -- )
+    ;open-file JSR2
+    ( encode first frame )
+    ;img-buffer ;encode-frame JSR2
+    ( generate header )
+    ;header ;generate-header JSR2
+    ( open output file for writing )
+    ;out-filename .File1/name DEO2
+    ( write header )
+    #0006 .File1/length DEO2
+    ;header .File1/write DEO2
+    &write-loop
+        ( write image data )
+        .encoder/tile-count-row LDZ2 .encoder/tile-count-col LDZ2 #30 SFT2 MUL2 .File1/length DEO2
+        ;img-buffer .File1/write DEO2
+        ( try to read the next frame ) 
+        ;read-buffer ;parse-header JSR2
+        ( encode frame )
+        ;img-buffer ;encode-frame JSR2
+    ,&write-loop JMP
+
+    .File1/success DEI2 .encoder/tile-count-col LDZ2 .encoder/tile-count-row LDZ2 #30 SFT2 MUL2 EQU2 ,&succ JCN
+        LIT "F .Console/write DEO ,&end JMP
+    &succ
+        LIT "S .Console/write DEO
+    &end
+    #010f DEO
+    RTN
+
+@open-file ( filename*(addr) -- )
+    ( set the file name )
+    .File0/name DEO2
+    ;read-buffer ;parse-header JSR2
+    RTN
+
+@parse-header ( buffer*(addr) -- buffer+offset*(addr) )
+    ( read the file signature )
+    #0003 .File0/length DEO2
+    DUP2 .File0/read DEO2
+    ( check if we read three bytes )
+    .File0/success DEI2 #0003 EQU2 ,&read-ok JCN
+    ;strings/read-fail ;print-str JSR2 BRK
+
+    &read-ok
+    ( check the signature )
+    LDA2k #5035 EQU2 ,&sign-ok JCN
+    ;strings/sign-fail ;print-str JSR2 BRK
+
+    &sign-ok
+    ( read width )
+    ;read-field JSR2
+    .image/width STZ2
+    ( read height )
+    ;read-field JSR2
+    .image/height STZ2
+    ( check maximum pixel value )
+    ;read-field JSR2
+    #00ff EQU2 ,&maxval-ok JCN
+    ;strings/maxval-fail ;print-str JSR2 BRK
+    &maxval-ok
+    RTN
+
+@encode-frame ( buffer(address)* -- )
+    ( store buffer address )
+    STH2
+    ( set read length to 1 byte )
+    #0001 .File0/length DEO2
+    ( calculate the tile count )
+    ;calc-tile-count JSR2
+    ( initialize buffer )
+    STH2kr ;initialize-buffer JSR2
+    POP2
+
+    ( loop over each row of the source image )
+    #0000 .encoder/src-idx-row STZ2
+    @src-row-loop
+        .encoder/src-idx-row LDZ2 INC2 .image/height LDZ2 GTH2 ;src-row-loop-end JCN2
+        ( set tile row index )
+        .encoder/src-idx-row LDZ2 #0008 DIV2k .encoder/tile-idx-row STZ2
+        ( set intile row index )
+        MOD2 NIP .encoder/intile-idx-row STZ
+        
+        ( loop over each pixel of the row )
+        #0000 .encoder/src-idx-col STZ2
+        @src-col-loop
+            .encoder/src-idx-col LDZ2 INC2 .image/width LDZ2 GTH2 ;src-col-loop-end JCN2
+            ( set tile col index )
+            .encoder/src-idx-col LDZ2 #0008 DIV2k .encoder/tile-idx-col STZ2
+            ( set intile col index )
+            MOD2 NIP .encoder/intile-idx-col STZ
+
+            ( calculate offset )
+            .encoder/tile-idx-row LDZ2 .encoder/tile-count-col LDZ2 MUL2 .encoder/tile-idx-col LDZ2 ADD2 #30 SFT2 #00 .encoder/intile-idx-row LDZ ADD2 .encoder/offset STZ2
+            ( calculate shift )
+            #07 .encoder/intile-idx-col LDZ SUB #40 SFT .encoder/shift STZ
+            ( read pixel value )
+            ;read-buffer .File0/read DEO2
+            ;read-buffer LDA
+            ( get threshold value )
+            .encoder/src-idx-row LDZ2 #0002 MOD2 DUP2 ADD2 .encoder/src-idx-col LDZ2 #0002 MOD2 ADD2 ;threshold-matrix ADD2 LDA
+            ( apply threshold )
+            GTH .encoder/shift LDZ SFT
+            ( write value to buffer )
+            STH2kr .encoder/offset LDZ2 ADD2 LDA ADD STH2kr .encoder/offset LDZ2 ADD2 STA
+            .encoder/src-idx-col LDZ2 INC2 .encoder/src-idx-col STZ2
+            ;src-col-loop JMP2
+        @src-col-loop-end
+        .encoder/src-idx-row LDZ2 INC2 .encoder/src-idx-row STZ2
+        ;src-row-loop JMP2
+    @src-row-loop-end
+
+    ( POP buffer address )
+    POP2r
+    RTN
+
+@initialize-buffer ( buffer(address)* -- buffer(address)* )
+    ( stash the buffer address )
+    STH2
+    ( calculate total number of tiles )
+    .encoder/tile-count-row LDZ2 .encoder/tile-count-col LDZ2 MUL2
+    ( initialize tile index )
+    #0000
+    &loop
+        ( check if we wrote all tiles )
+        LTH2k ,&end JCN
+        ( calculate the offset and add it to the buffer address )
+        DUP2 #30 SFT2 STH2kr ADD2
+        ( write 8 0 bytes )
+        #00 ROT ROT
+        STAk INC2 STAk INC2 STAk INC2 STAk INC2 STAk INC2 STAk INC2 STAk INC2 STA
+        ( increment tile index )
+        INC2
+        ,&loop JMP
+    &end
+    ( POP tile index )
+    POP2
+    ( POP total number of tiles )
+    POP2
+    ( POP the buffer address from return stack )
+    POP2r
+    RTN
+
+@calc-tile-count ( -- )
+    ( store the number of tile in a row )
+    .image/width LDZ2 TO-TILE .encoder/tile-count-col STZ2
+    .image/height LDZ2 TO-TILE .encoder/tile-count-row STZ2
+    RTN
+
+@read-field ( -- field-value* )
+    ( set read length to 1 byte )
+    #0001 .File0/length DEO2
+    ( store offset )
+    LITr 00
+    &loop
+        ( check if we read five bytes )
+        STHkr #05 GTH ,&too-long JCN
+        ( read one byte )
+        ;read-buffer #00 STHkr ADD2 .File0/read DEO2
+        ( check if we just read a whitespace or a LF )
+        ;read-buffer #00 STHkr ADD2 LDA STHk #0a EQU STHr #20 EQU ORA ,&end-read JCN
+        ( increment offset )
+        LITr 01 ADDr
+        ,&loop JMP
+    &too-long
+        ;strings/field-fail ;print-str JSR2
+        BRK
+    &end-read
+    ( decrement offset once )
+    LITr 01 SUBr
+
+    ( compute field value )
+    ( initialize mutiplier )
+    #0001
+    ( initialize return value )
+    #0000
+    &comp-loop
+        ( check if offset is greater than 0 )
+        STHkr #ff EQU ,&end-comp JCN
+        ( add digit )
+        OVR2 ;read-buffer #00 STHkr ADD2 LDA #30 SUB #00 SWP MUL2 ADD2
+        ( increase multiplier )
+        SWP2 #000a MUL2 SWP2
+        ( decrement offset )
+        LITr 01 SUBr
+        ,&comp-loop JMP
+    &end-comp
+    ( POP offset )
+    POPr
+    ( NIP multiplier )
+    NIP2
+    RTN
+        
+@print-str ( string*(address) -- )
+    &loop
+        LDAk DUP #00 EQU ,&end JCN
+        .Console/write DEO
+        INC2
+        ,&loop JMP
+    &end
+    POP POP2
+    RTN
+
+@out-filename "out.icn 00
+@threshold-matrix 78 8c 96 aa
+@strings [
+    &read-fail "Could't 20 "read 20 "input 20 "file 0a 00
+    &sign-fail "Not 20 "a 20 "PGM 20 "file 0a 00
+    &field-fail "Field 20 "is 20 "too 20 "long 0a 00
+    &maxval-fail "Not 20 "8 20 "bpp 0a 00
+]
+
+@read-buffer $5
+@img-buffer

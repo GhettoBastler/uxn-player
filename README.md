@@ -1,20 +1,23 @@
 # uxn-player
-A video player prototype for the [Uxn](https://100r.co/site/uxn.html) virtual machine.
+(WIP) An animation player for the [Uxn](https://100r.co/site/uxn.html) virtual machine.
 
-![bunny](https://user-images.githubusercontent.com/100698182/209220053-95d4a295-7417-4049-b5f8-624548ad66bc.gif)
+It displays 1 bpp animations at 30 fps, and uses a custom made file format. Audio isn't supported.
+This project started as an exercise for learning [Uxntal](https://wiki.xxiivv.com/site/uxntal.html) and is still a work in progress.
 
-*Original video: [Big Buck Bunny - Blender Fundation (CC-BY-3.0)](https://www.youtube.com/watch?v=YE7VzlLtp-4)*
+## File format
+The file format used for storing an animation is pretty bare-bones:
+- A 6 bytes long header storing:
+    - Screen width (2 bytes)
+    - Screen height (2 bytes)
+    - Number of bytes per frame (2 bytes)
+    The three values are stored MSB first.
 
-This project was written as an exercise for learning [Uxntal](https://wiki.xxiivv.com/site/uxntal.html). The encoding scheme is pretty bare: each frame is converted to 1-bit using [ordered dithering](https://en.wikipedia.org/wiki/Ordered_dithering) (with custom threshold values), before being [ICN-encoded](https://wiki.xxiivv.com/site/icn_format.html) and concatenated together. A 6-bytes header stores the width, height and number of bytes per frame (three 2-bytes shorts, MSB first).
+- The animation frames, [ICN-encoded](https://wiki.xxiivv.com/site/icn_format.html) and concatenated together.
 
-As this is pretty experimental, there's a lot of room for improvement: the playback speed is set at 30 fps, the frames aren't compressed therefore the resulting file can get pretty large (more than 3MB for a 6 seconds clip at 600x338 pixel), and there is no audio.
+Currently the frames are stored uncompressed, therefore the encoded files can get pretty large (more than 3MB for a 6 seconds clip at 600x338 pixel).
 
 ## Requirements
-### Encoder
-- [FFmpeg](https://ffmpeg.org/) (for extracting the frames of the video to encode)
-- Python 3 + [Pillow](https://pypi.org/project/Pillow/) module (for encoding)
-
-### Player
+- Python 3 with the [Pillow](https://pypi.org/project/Pillow/) module
 - [uxn](https://git.sr.ht/~rabbits/uxn/) assembler and emulator
 
 ## Build
@@ -23,25 +26,34 @@ uxnasm player.tal player.rom
 ```
 
 ## Usage
-First, you need to extract the frames from the video you want to encode using *ffmpeg*. Since the resulting file isn't compressed, you may have to scale them down (500px seems to work well). The frames should all be in a separate directory with nothing else inside.
-```
-mkdir frames
-ffmpeg -i [src-video] -ss [start-time] -t [duration] image2 scale=500:-2 frames/%03d.bmp
-```
-
+### Encoding GIF files
 Use *encode.py* to generate the encoded file:
 
 ```
-python encoder.py frames out.bin
+python encode-gif.py src-file dst-file
+```
+The encoder converts color GIFs into grayscale, and uses [ordered dithering](https://en.wikipedia.org/wiki/Ordered_dithering) with a 2x2 Bayer matrix to turn them into 1 bpp images. Custom threshold values for dithering can be specified with the `-t/--thresholds` option.
+For example, the following command uses the matrix:
+
+ `[80 100; 150 100]`
+
+```
+python encode-gif.py -t 60 80 100 150 src-file encoded-file
 ```
 
-To play the video, pass it as an argument to player.rom:
+### Playback
+To play the animation, pass it as an argument to `player.rom`. Window size is set dynamically:
 
 ```
-uxnemu player.rom out.bin
+uxnemu player.rom encoded-file
 ```
-
 Use <kbd>Space</kbd> to pause the video.
+
+## TODO
+- [ ] Use transparency optimization to reduce file size
+- [ ] Adjust playback speed (currently set to 30 fps)
+- [ ] Rewrite encoder in uxntal
+- [ ] Add support for 2 bpp frames
 
 ## Licensing
 
