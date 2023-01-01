@@ -11,13 +11,17 @@ This project started as an exercise for learning [Uxntal](https://wiki.xxiivv.co
 ## File format
 The file format used for storing an animation is pretty bare-bones:
 - A 6 bytes long header storing:
-    - Screen width (2 bytes)
-    - Screen height (2 bytes)
-    - Number of bytes per frame (2 bytes)
+    - Screen width - 2 bytes
+    - Screen height - 2 bytes
+    - Number of bytes per frame - 2 bytes
   
     The three values are stored MSB first.
 
-- The animation frames, [ICN-encoded](https://wiki.xxiivv.com/site/icn_format.html) and concatenated together.
+- The animation frames:
+    - Duration for which to display the frame (number of milliseconds * 0.06) - 2 bytes
+    - [ICN-encoded](https://wiki.xxiivv.com/site/icn_format.html)
+    
+    Frames are concatenated in the order they are displayed in.
 
 Currently the frames are stored uncompressed, therefore the encoded files can get pretty large (more than 3MB for a 6 seconds clip at 600x338 pixel).
 
