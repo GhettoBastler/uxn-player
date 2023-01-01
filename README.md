@@ -19,7 +19,7 @@ The file format used for storing an animation is pretty bare-bones:
 
 - The animation frames:
     - Duration for which to display the frame (number of milliseconds * 0.06) - 2 bytes
-    - [ICN-encoded](https://wiki.xxiivv.com/site/icn_format.html)
+    - [ICN-encoded](https://wiki.xxiivv.com/site/icn_format.html) frame data
     
     Frames are concatenated in the order they are displayed in.
 
