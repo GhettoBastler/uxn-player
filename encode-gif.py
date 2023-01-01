@@ -63,12 +63,15 @@ def encode_frame(img, dither_matrix):
         image width (2 bytes)
         image height (2 bytes)
         number of bytes in the frame (2 bytes)
-    - the ICN encoded image"""
+    - data:
+        Duration of the frame (= duration in ms * 0.06) (2 bytes)
+        The ICN encoded image"""
 
     padded = pad_image(img.convert('L'))
     width, height = padded.size
     tile_count = get_tile_count(width, height)
     frame_length = tile_count * 8
+    duration = round(img.info['duration'] * 0.06)
     data = []
 
     for tile_idx in range(tile_count):
@@ -90,7 +93,7 @@ def encode_frame(img, dither_matrix):
     header += height.to_bytes(2, 'big')
     header += frame_length.to_bytes(2, 'big')
 
-    return (header, bytes(data))
+    return (header, duration.to_bytes(2, 'big') + bytes(data))
 
 
 def get_parser():
