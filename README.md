@@ -12,6 +12,7 @@ The file format used for storing an animation is pretty bare-bones:
     - Screen width (2 bytes)
     - Screen height (2 bytes)
     - Number of bytes per frame (2 bytes)
+  
     The three values are stored MSB first.
 
 - The animation frames, [ICN-encoded](https://wiki.xxiivv.com/site/icn_format.html) and concatenated together.
