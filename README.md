@@ -33,7 +33,7 @@ uxnasm player.tal player.rom
 Use `encode-gif.py` to generate the encoded file:
 
 ```
-python encode-gif.py src-file dst-file
+python encode-gif.py src-file encoded-file
 ```
 The encoder converts color GIFs into grayscale, and uses [ordered dithering](https://en.wikipedia.org/wiki/Ordered_dithering) with a 2x2 Bayer matrix to turn them into 1 bpp images. Custom threshold values for dithering can be specified with the `-t/--thresholds` option.
 For example, the command bellow uses the following threshold matrix:
