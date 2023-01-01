@@ -1,6 +1,8 @@
 # uxn-player
 (WIP) An animation player for the [Uxn](https://100r.co/site/uxn.html) virtual machine.
 
+![cat](https://user-images.githubusercontent.com/100698182/210174197-463af8eb-3d60-430f-8cad-00703f047783.gif)
+
 It displays 1 bpp animations at 30 fps, and uses a custom made file format. Audio isn't supported.
 This project started as an exercise for learning [Uxntal](https://wiki.xxiivv.com/site/uxntal.html) and is still a work in progress.
 
@@ -33,10 +35,10 @@ Use *encode.py* to generate the encoded file:
 python encode-gif.py src-file dst-file
 ```
 The encoder converts color GIFs into grayscale, and uses [ordered dithering](https://en.wikipedia.org/wiki/Ordered_dithering) with a 2x2 Bayer matrix to turn them into 1 bpp images. Custom threshold values for dithering can be specified with the `-t/--thresholds` option.
-For example, the following command uses the matrix:
-
- `[80 100; 150 100]`
-
+For example, the command bellow uses the following threshold matrix:
+ ```math
+{\left\lbrack \matrix{80 & 100 \cr 150 & 60} \right\rbrack}
+```
 ```
 python encode-gif.py -t 60 80 100 150 src-file encoded-file
 ```
