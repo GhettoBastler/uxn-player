@@ -29,7 +29,7 @@ uxnasm player.tal player.rom
 
 ## Usage
 ### Encoding GIF files
-Use *encode.py* to generate the encoded file:
+Use `encode-gif.py` to generate the encoded file:
 
 ```
 python encode-gif.py src-file dst-file
