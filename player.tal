@@ -8,7 +8,7 @@
 |0000
     ( zero page )
     @frame-idx $2
-    @skip-frame $1
+    @frame-delay $2
     @color $1
     @state $1
     @filename [ &length $1 &value $40 ]
@@ -27,7 +27,7 @@
 
     ( initialize zero page )
     #0000 .frame-idx STZ
-    #00 .skip-frame STZ
+    #0000 .frame-delay STZ
     #02 .color STZ
     #00 .state STZ ( 0: init 1: playing 2: stop )
     #00 .filename/length STZ
@@ -83,17 +83,18 @@ BRK
 
     @on-screen ( -> )
         ( check the state )
-        .state LDZ #01 NEQ ,&skip JCN
+        .state LDZ #01 NEQ ,&stopped JCN
 
-        ( the subroutine is called at 60 fps, but the video is at 30 fps )
-        ( so we use the skip-frame zero page flag to skip every other call )
-        .skip-frame LDZ #01 EQU ,&skip JCN
+        ( the subroutine is called at 60 fps )
+        ( so we skip until frame-delay is 0 )
+        .frame-delay LDZ2 #0000 GTH2 ,&skip JCN
 
         ( load the next frame )
         ;frame-data ;load-frame JSR2
         ( check if we successfully loaded the frame )
         ,&read-fail JCN ,&read-success JMP
         &read-fail
+            #0000 .frame-delay STZ2
             #0000 .frame-idx STZ
             ;filename/value ;open-file JSR2
             POP2 ( TODO: check for success )
@@ -102,13 +103,12 @@ BRK
         MARGINS DUP2 ;frame-data ;display-frame JSR2
         ( increment frame-idx )
         .frame-idx LDZ2 INC2 .frame-idx STZ2
-        ( toggle the skip-frame flag )
-        #01 .skip-frame STZ
         BRK
 
         &skip
-            ( toggle the skip-frame flag )
-            #00 .skip-frame STZ
+            ( decrement frame-delay )
+            .frame-delay LDZ2 #0001 SUB2 .frame-delay STZ2
+        &stopped
         BRK
 
     @open-file ( ^filename* -- bytes_read )
@@ -120,6 +120,14 @@ BRK
     RTN
 
     @load-frame ( buffer* -- success-flag )
+        STH2k ( store a copy of the buffer address for later use )
+        ( read the frame delay )
+        #0002 .File/length DEO2
+        .File/read DEO2 
+        STH2rk LDA2 .frame-delay STZ2
+        ( read ICN data )
+        .video/frame-length LDZ2 .File/length DEO2
+        STH2r ( fetch the buffer address )
         .File/read DEO2 ( load a frame in the buffer )
         .File/success DEI2 ( push the number of bytes read on the stack )
         .video/frame-length LDZ2 NEQ2 ( success flag is 00 if we read "frame-length" bytes, else 01 )

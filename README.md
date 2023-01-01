@@ -3,7 +3,7 @@
 
 ![cat](https://user-images.githubusercontent.com/100698182/210174197-463af8eb-3d60-430f-8cad-00703f047783.gif)
 
-It displays 1 bpp animations at 30 fps, and uses a custom made file format. Audio isn't supported.
+It displays 1 bpp animations stored with a custom made file format. Audio isn't supported.
 This project started as an exercise for learning [Uxntal](https://wiki.xxiivv.com/site/uxntal.html) and is still a work in progress.
 
 ## File format
@@ -54,7 +54,7 @@ Use <kbd>Space</kbd> to pause the video.
 
 ## TODO
 - [ ] Use transparency optimization to reduce file size
-- [ ] Adjust playback speed (currently set to 30 fps)
+- [x] Adjust playback speed (currently set to 30 fps)
 - [ ] Rewrite encoder in uxntal
 - [ ] Add support for 2 bpp frames
 
