@@ -8,7 +8,7 @@ Description of the file format used to store the animation:
   
 - Then comes all the frames concatenated together. For each frame:
     - Duration for which to display the frame (number of milliseconds * 0.06) - 2 bytes
-    - Number of skip/draw blocks - 2 bytes
+    - Total number of skip/draw blocks - 2 bytes
     - Blocks of data, all concatenated together:
         - flag - 1 byte: 00 means we skip, any other value means we draw
         - length: 2 bytes
