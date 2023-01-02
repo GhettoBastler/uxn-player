@@ -126,26 +126,26 @@ BRK
 
 
 @load-frame ( buffer-addr* -- success )
-    STH2k ( buffer-addr* / rs: buffer-addr* )
+    STH2 ( ws: / rs: buffer-addr* )
 
     ( read the frame delay )
-    #0002 .File/length DEO2 ( buffer-addr* / rs: buffer-addr* )
-    .File/read DEO2 ( ws: / rs: buffer-addr* )
+    #0002 .File/length DEO2 ( ws: / rs: buffer-addr* )
+    ;read-buffer .File/read DEO2 ( ws: / rs: buffer-addr* )
     ( check for success )
     .File/success DEI2 ( ws: read-length* / rs: buffer-addr* )
     #0002 NEQ2 ,&fail JCN ( ws: / rs: buffer-addr* )
 
     ( store the frame delay )
-    STH2kr ( ws: buffer-addr* / rs: buffer-addr* )
+    ;read-buffer ( ws: read-buffer-addr* / rs: buffer-addr* )
     LDA2 ( ws: delay* / rs: buffer-addr* )
     .frame-delay STZ2 ( ws: / rs: buffer-addr* )
 
     ( fetch the number of blocks )
-    STH2kr ( ws: buffer-addr* / rs: buffer-addr* )
-    #0002 .File/length DEO2 ( ws: buffer-addr* / rs: buffer-addr* )
+    ;read-buffer ( ws: read-buffer-addr* / rs: buffer-addr* )
+    #0002 .File/length DEO2 ( ws: read-buffer-addr* / rs: buffer-addr* )
     .File/read DEO2 ( ws: / rs: buffer-addr* )
     STH2r ( ws: buffer-addr* / rs: )
-    LDA2k ( ws: buffer-addr* n-blocks* / rs: )
+    ;read-buffer LDA2 ( ws: buffer-addr* n-blocks* / rs: )
     ;decode-frame JSR2 ( ws: / rs )
     #00 RTN
 
@@ -169,13 +169,12 @@ BRK
 
 
 @write-block ( buffer-addr* -- new-buffer-addr* )
-    STH2k ( ws: buffer-addr* / rs: buffer-addr* )
-    #0003 .File/length DEO2 ( ws: buffer-addr* / rs: buffer-addr* )
-    .File/read DEO2 ( ws: / rs: buffer-addr* )
-    STH2rk ( ws: buffer-addr* / rs: buffer-addr* )
-    INC2 ( ws: buffer-addr+1* / rs: buffer-addr* )
-    LDA2 ( ws: block-length* / rs: buffer-addr* )
-    STH2rk ( ws: block-length* buffer-addr* / rs: buffer-addr* )
+    STH2 ( ws: / rs: buffer-addr* )
+    #0003 .File/length DEO2 ( ws: / rs: buffer-addr* )
+    ;read-buffer DUP2 DUP2 .File/read DEO2 ( ws: read-buffer-addr* read-buffer-addr* / rs: buffer-addr* )
+    INC2 ( ws: read-buffer-addr* read-buffer-addr+1* / rs: buffer-addr* )
+    LDA2 ( ws: read-buffer-addr* block-length* / rs: buffer-addr* )
+    SWP2 ( ws: block-length* read-buffer-addr* / rs: buffer-addr* )
     LDA ( ws: block-length* flag / rs: buffer-addr* )
     #00 EQU ,&frame-buffer-advance JCN ( ws: block-length* / rs: buffer-addr* )
 
@@ -226,6 +225,7 @@ BRK
     NIP
     RTN
 
+( buffer for reading block data )
 @read-buffer $3
 ( buffer for the frame )
 @frame-data
