@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+from math import ceil
 from PIL import Image, ImageSequence
 
 
@@ -37,7 +38,6 @@ def get_tile_count(width, height):
         raise ValueError(f'Image height is not a multiple of 8 ({height})')
     return width * height // 64
 
-
 def pad_image(img):
     """
     Pads an image so its width and height are multiples of 8"""
@@ -56,44 +56,97 @@ def pad_image(img):
     return res
 
 
-def encode_frame(img, dither_matrix):
+def encode_frame(img, dither_matrix, prev_data):
     """
-    ICN encode an image. Returns two bytestrings:
-    - header:
-        image width (2 bytes)
-        image height (2 bytes)
-        number of bytes in the frame (2 bytes)
-    - data:
-        Duration of the frame (= duration in ms * 0.06) (2 bytes)
-        The ICN encoded image"""
+    Encode a frame, skipping bytes that are the same as in previous frame.
+    Returns three bytestrings:
+    - the duration of the frame (= duration in ms * 0.06) (2 bytes)
+    - transparency optimized data
+    - the unencoded "raw" frame data (for encoding the next frame)"""
 
-    padded = pad_image(img.convert('L'))
-    width, height = padded.size
-    tile_count = get_tile_count(width, height)
-    frame_length = tile_count * 8
     duration = round(img.info['duration'] * 0.06)
-    data = []
+    padded = pad_image(img.convert('L'))
+    pwidth, pheight = padded.size
+    tile_count = get_tile_count(pwidth, pheight)
+    raw_data = b''
 
     for tile_idx in range(tile_count):
         for intile_row in range(8):
-            bmp_row = get_bmp_row(tile_idx, intile_row, width)
+            bmp_row = get_bmp_row(tile_idx, intile_row, pwidth)
             curr_total = 0
             for intile_col in range(8):
-                bmp_col = get_bmp_col(tile_idx, intile_col, width)
+                bmp_col = get_bmp_col(tile_idx, intile_col, pwidth)
                 thresh_val = dither_matrix[intile_row][intile_col]
                 if padded.getpixel((bmp_col, bmp_row)) > thresh_val:
                     output_val = 1
                 else:
                     output_val = 0
                 curr_total += output_val * 2**(7 - intile_col)
-            data.append(curr_total)
+            raw_data += curr_total.to_bytes(1, 'big')
 
-    header = b''
-    header += width.to_bytes(2, 'big')
-    header += height.to_bytes(2, 'big')
-    header += frame_length.to_bytes(2, 'big')
+    optimized, n_blocks = transparency_optimize(raw_data, prev_data)
+    res = (
+        duration.to_bytes(2, 'big'),
+        n_blocks.to_bytes(2, 'big'),
+        optimized,
+        raw_data,
+    )
+    return res
 
-    return (header, duration.to_bytes(2, 'big') + bytes(data))
+
+def transparency_optimize(curr_data, prev_data):
+    """
+    Returns the encoded data as a bytestream, as well as the number of blocks.
+    If prev_data is None, write the entire frame data"""
+
+    res = b''
+
+    if prev_data is None:
+        n_blocks = 1
+        res += b'\x01' # Write flag
+        res += len(curr_data).to_bytes(2, 'big') # length
+        res += curr_data
+
+    else:
+        n_blocks = 0
+        length = 0
+        prev_state = None
+        buffer = b''
+        for i, b in enumerate(curr_data):
+            curr_state = prev_data[i] == b # curr_state is True if we should skip this byte
+
+            if prev_state is None: # Special case: first byte of the stream
+                if curr_state:
+                    res += b'\x00'
+                else:
+                    res += b'\x01'
+                prev_state = curr_state
+
+            if curr_state: # We should skip this byte
+                to_store = b''
+            else:
+                to_store = b.to_bytes(1, 'big')
+
+            if prev_state == curr_state:
+                buffer += to_store
+                length += 1
+            else:
+                n_blocks += 1
+                res += length.to_bytes(2, 'big')
+                res += buffer
+                length = 1
+                buffer = to_store
+                if curr_state:
+                    res += b'\x00'
+                else:
+                    res += b'\x01'
+            prev_state = curr_state
+        # Write remaining data
+        n_blocks += 1
+        res += length.to_bytes(2, 'big')
+        res += buffer
+
+    return res, n_blocks
 
 
 def get_parser():
@@ -120,20 +173,27 @@ def main():
 
     matrix = get_matrix(args.thresholds)
 
-    width, height = gif.size
     n_frames = gif.n_frames
-    i = 1
+    print(f'Source file contains {n_frames} frames.')
 
+    width, height = gif.size
+    print(f'Original size is {width}x{height}')
+
+    pwidth = ceil(width/8)*8
+    pheight = ceil(height/8)*8
+    print(f'Encoded file will be {pwidth}x{pheight}.')
+    
+    header = pwidth.to_bytes(2, 'big') + pheight.to_bytes(2, 'big')
+
+    i = 1
+    prev_data = None
     with open(args.dst_file, 'wb') as f:
-        print(f'{width}x{height}, {n_frames} frames')
-        first = True
+        f.write(header)
         for frame in ImageSequence.Iterator(gif):
             print(f'Encoding frame {i}/{n_frames}')
-            header, data = encode_frame(frame, matrix)
-            if first:
-                f.write(header)
-                first = False
-            f.write(data)
+            bduration, bn_blocks, bopti, braw = encode_frame(frame, matrix, prev_data)
+            f.write(bduration + bn_blocks + bopti)
+            prev_data = braw
             i += 1
 
 

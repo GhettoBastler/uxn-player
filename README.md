@@ -9,21 +9,7 @@ It displays 1 bpp animations stored with a custom made file format. Audio isn't 
 This project started as an exercise for learning [Uxntal](https://wiki.xxiivv.com/site/uxntal.html) and is still a work in progress.
 
 ## File format
-The file format used for storing an animation is pretty bare-bones:
-- A 6 bytes long header storing:
-    - Screen width - 2 bytes
-    - Screen height - 2 bytes
-    - Number of bytes per frame - 2 bytes
-  
-    The three values are stored MSB first.
-
-- The animation frames:
-    - Duration for which to display the frame (number of milliseconds * 0.06) - 2 bytes
-    - [ICN-encoded](https://wiki.xxiivv.com/site/icn_format.html) frame data
-    
-    Frames are concatenated in the order they are displayed in.
-
-Currently the frames are stored uncompressed, therefore the encoded files can get pretty large (more than 3MB for a 6 seconds clip at 600x338 pixel).
+See ENCODING.md
 
 ## Requirements
 - Python 3 with the [Pillow](https://pypi.org/project/Pillow/) module
