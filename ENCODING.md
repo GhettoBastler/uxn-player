@@ -25,7 +25,7 @@ Graphics for each frame is [ICN-encoded](https://wiki.xxiivv.com/site/icn_format
 These skip/mark blocks have the following structure:
 - A flag indicating whether this is a mark block or a skip block (1 byte: 00 means skip, any other value means mark)
 - The length to skip/mark (2 bytes)
-- 
+
 The bytes that follow depend on the type of block:
 - Skip block (flag == 00): the block ends here
 - Mark block (flag != 00): the ICN-encoded graphics
