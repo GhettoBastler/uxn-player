@@ -3,7 +3,7 @@
 Description of the `.1ba` file format used to store the animation. All numbers are stored MSB first.
 
 ## Global header
-The first four bytes of a `.1ba` are reserved for the screen size:
+The first four bytes of a `.1ba` file are reserved for the screen size:
 
 - width (2 bytes)
 - height (2 bytes)
