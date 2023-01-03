@@ -23,10 +23,10 @@ uxnasm player.tal player.rom
 
 ## Usage
 ### Encoding GIF files
-Use `encode-gif.py` to generate the encoded file:
+Use `gif21ba.py` to generate the encoded file:
 
 ```
-python encode-gif.py src-file encoded-file
+python gif21ba.py src-file encoded-file
 ```
 The encoder converts color GIFs into grayscale, and uses [ordered dithering](https://en.wikipedia.org/wiki/Ordered_dithering) with a 2x2 Bayer matrix to turn them into 1 bpp images. Custom threshold values for dithering can be specified with the `-t/--thresholds` option.
 For example, the command bellow uses the following threshold matrix:
@@ -34,7 +34,7 @@ For example, the command bellow uses the following threshold matrix:
 {\left\lbrack \matrix{80 & 100 \cr 150 & 60} \right\rbrack}
 ```
 ```
-python encode-gif.py -t 60 80 100 150 src-file encoded-file
+python gif21ba.py -t 60 80 100 150 src-file encoded-file
 ```
 
 ### Playback
