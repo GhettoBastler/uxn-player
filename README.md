@@ -9,7 +9,8 @@ It displays 1 bpp animations stored with a custom made file format. Audio isn't 
 This project started as an exercise for learning [Uxntal](https://wiki.xxiivv.com/site/uxntal.html) and is still a work in progress.
 
 ## File format
-See ENCODING.md
+
+Clips used by uxn-player follow the custom `1ba` file format (for **1-b**it **a**nimation), described in [ENCODING.md](ENCODING.md).
 
 ## Requirements
 - Python 3 with the [Pillow](https://pypi.org/project/Pillow/) module
@@ -45,7 +46,7 @@ uxnemu player.rom encoded-file
 Use <kbd>Space</kbd> to pause the video.
 
 ## TODO
-- [ ] Use transparency optimization to reduce file size
+- [x] Use transparency optimization to reduce file size
 - [x] Adjust playback speed (currently set to 30 fps)
 - [ ] Rewrite encoder in uxntal
 - [ ] Add support for 2 bpp frames
