@@ -2,6 +2,9 @@
 
 Description of the `.1ba` file format used to store the animation. All numbers are stored MSB first.
 
+![Visual explainatin of the file format](1ba_details.jpg)
+*Visual explaination of the .1ba file format. Original idea by [Corkami](https://github.com/corkami)*
+
 ## Global header
 The first four bytes of a `.1ba` file are reserved for the screen size:
 
